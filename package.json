@@ -1,0 +1,17 @@
+{
+  "name": "divulgeai",
+  "private": true,
+  "version": "2.0.0",
+  "description": "DivulgeAI — AI-powered dental diagnostics platform",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "website":       "cd website && npm run dev",
+    "desktop":       "cd desktop && npm run dev",
+    "install:all":   "cd website && npm install && cd ../desktop && npm install",
+    "build:website": "cd website && npm run build",
+    "build:win":     "cd desktop && npm run dist:win",
+    "build:mac":     "cd desktop && npm run dist:mac",
+    "build:linux":   "cd desktop && npm run dist:linux",
+    "build:desktop": "cd desktop && npm run dist"
+  }
+}
