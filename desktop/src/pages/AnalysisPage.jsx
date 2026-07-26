@@ -187,6 +187,7 @@ export default function AnalysisPage() {
           severity:    res.findings.find(f=>f.severity==='High')?.severity || res.findings.find(f=>f.severity==='Low')?.severity || 'None',
           treatment:   res.findings.filter(f=>f.severity!=='None').map(f=>f.recommendation).filter((v,i,a)=>a.indexOf(v)===i).join(' ') || 'Continue routine dental hygiene. Review in 12 months.',
           doctorNotes: '',
+          aiSummary:   res.aiSummary || {},
         })
         allResults.push({ report, img, success: true })
       } catch (err) {

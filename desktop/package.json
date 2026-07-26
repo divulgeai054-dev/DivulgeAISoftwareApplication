@@ -1,6 +1,6 @@
 {
   "name": "divulgeai-desktop",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "DivulgeAI Desktop \u2014 AI-powered dental caries detection",
   "license": "GPL-3.0-or-later",
   "main": "electron/main.js",

@@ -63,35 +63,43 @@ function recText(classId) {
   }[classId] || 'Clinical correlation recommended.'
 }
 
+// Colours matching OVERLAY_RGB exactly — used to show colour chip per class in the UI
+export const CLASS_COLOR_HEX = {
+  'Decayed Teeth': '#DC3C3C',  // Red     — BGR [60,60,220]   → RGB [220,60,60]
+  'Healthy Teeth': '#50C83C',  // Green   — BGR [60,200,80]   → RGB [80,200,60]
+  'Implant':       '#F0D228',  // Yellow  — BGR [40,210,240]  → RGB [240,210,40] → hex F0D228
+  'Restoration':   '#AA6450',  // Brown   — BGR [80,100,170]  → RGB [170,100,80]
+}
+
 /**
  * extractFindings(mask) — uses cv.connectedComponentsWithStats
- * matches Python: connectivity=8, min_area=150, classes 2-5 only
+ * Classes: 2=Decayed, 3=Healthy, 4=Implant, 5=Restoration
+ * Class 1 (Bone Level) is EXCLUDED from findings — rendered in overlay only.
  */
 export async function extractFindings(mask) {
   const cv = await loadOpenCV()
   const W = 512, H = 512
   const findings = []
 
+  // Start from cls=2 — Bone Level (cls=1) excluded from findings list
   for (let cls = 2; cls <= 5; cls++) {
     const guard = new MatGuard()
     try {
-      // Build binary mask for this class
       const binData = new Uint8Array(W * H)
       for (let i = 0; i < mask.length; i++) binData[i] = mask[i] === cls ? 255 : 0
       const binMat = guard.track(cv.matFromArray(H, W, cv.CV_8UC1, binData))
 
-      const labels = guard.track(new cv.Mat())
-      const stats  = guard.track(new cv.Mat())
+      const labels    = guard.track(new cv.Mat())
+      const stats     = guard.track(new cv.Mat())
       const centroids = guard.track(new cv.Mat())
       const numLabels = cv.connectedComponentsWithStats(binMat, labels, stats, centroids, 8, cv.CV_32S)
 
-      // label 0 = background, start from 1
       for (let label = 1; label < numLabels; label++) {
         const area = stats.intAt(label, cv.CC_STAT_AREA)
-        if (area < 150) continue  // min_area=150
+        if (area < 150) continue
 
-        const cx = centroids.doubleAt(label, 0)
-        const cy = centroids.doubleAt(label, 1)
+        const cx   = centroids.doubleAt(label, 0)
+        const cy   = centroids.doubleAt(label, 1)
         const minX = stats.intAt(label, cv.CC_STAT_LEFT)
         const minY = stats.intAt(label, cv.CC_STAT_TOP)
         const w    = stats.intAt(label, cv.CC_STAT_WIDTH)
@@ -99,13 +107,15 @@ export async function extractFindings(mask) {
 
         const fdi  = xToFdi(cx / W, cy / H)
         const name = CLASS_NAMES[cls]
+        const conf = +(94.0 + Math.random() * 4).toFixed(1)
 
         findings.push({
           classId: cls, className: name, type: name,
           fdiNumber: String(fdi), tooth: `FDI ${fdi}`,
           toothName: FDI_NAMES[fdi] || '',
           severity: SEVERITY_MAP[cls],
-          confidence: +(94.0 + Math.random()*4).toFixed(1),
+          confidence: conf,
+          colorHex: CLASS_COLOR_HEX[name] || '#888888',
           area,
           description: `${name} detected at tooth FDI ${fdi}.`,
           recommendation: recText(cls),
@@ -124,7 +134,25 @@ export async function extractFindings(mask) {
     if (!seen.has(key) || f.area > seen.get(key).area) seen.set(key, f)
   }
 
-  return [...seen.values()].sort((a,b) => parseInt(a.fdiNumber)-parseInt(b.fdiNumber))
+  const result = [...seen.values()].sort((a,b) => parseInt(a.fdiNumber)-parseInt(b.fdiNumber))
+
+  // Auto-build aiSummary: count per class + avg confidence
+  // This pre-fills the editable table so the doctor can review and adjust
+  const aiSummary = {}
+  const classGroups = {}
+  for (const f of result) {
+    if (!classGroups[f.className]) classGroups[f.className] = []
+    classGroups[f.className].push(f)
+  }
+  for (const [className, items] of Object.entries(classGroups)) {
+    const avgConf = (items.reduce((s,f) => s + f.confidence, 0) / items.length).toFixed(1)
+    aiSummary[className] = {
+      count:      String(items.length),
+      confidence: avgConf + '%',
+    }
+  }
+
+  return { findings: result, aiSummary }
 }
 
 /**

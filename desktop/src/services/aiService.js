@@ -75,7 +75,7 @@ async function runInferenceInner({ base64, mime, onProgress, patientInfo = {} })
 
   // ── Step 6: Extract findings ─────────────────────────────────────────
   onProgress(93, 'Extracting findings…')
-  const findings = await extractFindings(mask)
+  const { findings, aiSummary } = await extractFindings(mask)
   console.log('[AI] Findings:', findings.length, findings.map(f=>`FDI${f.fdiNumber}:${f.className}`).join(', '))
 
   const regionCounts = { total: findings.length }
@@ -84,6 +84,7 @@ async function runInferenceInner({ base64, mime, onProgress, patientInfo = {} })
   onProgress(100, 'Analysis complete')
   return {
     findings,
+    aiSummary,
     confidence:              findings.length ? findings[0].confidence : 0,
     processingTime:          0,
     statistics:              stats,
